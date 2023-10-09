@@ -1,10 +1,12 @@
 ﻿using MySqlConnector;
-using PPlus;
 using ServerCloud.Config;
+using Spectre.Console;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ServerCloud.Database
@@ -26,13 +28,14 @@ namespace ServerCloud.Database
                 try
                 {
                     connection.ConnectionString = $"Server={config.sqlServer};User ID={config.sqlUser};Password={config.sqlPass};Database={config.sqlDb}";
+                    connection.StateChange += Connection_StateChange;
                     connection.OpenAsync();
                     isClosed = false;
-                    PromptPlus.WriteLine("SQL Verbindung Erfolgreich!");
+                    
                 }
                 catch (MySqlException e)
                 {
-                    PromptPlus.WriteLine($"SQL Fehler: {e.Message}");
+                    AnsiConsole.WriteLine($"SQL Fehler: {e.Message}");
                     SQLInformation(config);
                     isClosed = true;
                 }
@@ -44,13 +47,18 @@ namespace ServerCloud.Database
             cmd_psync.ExecuteNonQueryAsync();
         }
 
+        private void Connection_StateChange(object sender, StateChangeEventArgs e)
+        {
+            AnsiConsole.WriteLine($"Sql Verbindung: {e.CurrentState}");
+        }
+
         public ConfigFile SQLInformation(ConfigFile config)
         {
-            PromptPlus.WriteLine("Gib deine SQL Daten hier an oder in der Config Datei.");
-            config.sqlServer = PromptPlus.Input("SQL Server IP").Default(config.sqlServer).Run().Value;
-            config.sqlUser = PromptPlus.Input("SQL Benutzer").Default(config.sqlUser).Run().Value;
-            config.sqlPass = PromptPlus.Input("SQL Passwort").Default(config.sqlPass).IsSecret(new Char()).EnabledViewSecret().Run().Value;
-            config.sqlDb = PromptPlus.Input("SQL Datenbank").Default(config.sqlDb).Run().Value;
+            AnsiConsole.WriteLine("Gib deine SQL Daten hier an oder in der Config Datei.");
+            config.sqlServer = AnsiConsole.Prompt(new TextPrompt<string>("SQL Server IP").DefaultValue<string>(config.sqlServer));
+            config.sqlUser = AnsiConsole.Prompt(new TextPrompt<string>("SQL Benutzer").DefaultValue<string>(config.sqlUser));
+            config.sqlPass = AnsiConsole.Prompt(new TextPrompt<string>("SQL Passwort").DefaultValue<string>(config.sqlPass).Secret());
+            config.sqlDb = AnsiConsole.Prompt(new TextPrompt<string>("SQL Datenbank").DefaultValue<string>(config.sqlDb));
             Application.yaml.save(config);
             return config;
         }

@@ -1,0 +1,12 @@
+# ---------------------------------------- #
+#  Changes the directory the Program uses  #
+# ---------------------------------------- #
+working-dir: D:\C#\ServerCloud
+first-start: true
+# ---------------------------------------- #
+# Configure the connection to SQL Database #
+# ---------------------------------------- #
+sql-server: ''
+sql-user: ''
+sql-pass: ''
+sql-db: ''

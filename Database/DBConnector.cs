@@ -79,6 +79,8 @@ namespace ServerCloud.Database
             AnsiConsole.WriteLine($"SQL Server IP:      {config.sqlServer}");
             AnsiConsole.WriteLine($"SQL Benutzer:       {config.sqlUser}");
             AnsiConsole.WriteLine($"SQL Datenbank:      {config.sqlDb}");
+var prompt = AnsiConsole.Ask<bool>("Möchtest du diese Daten ändern?");
+SQLInformation(Application.yaml.load());
         }
 
         //Ja kp ob ich das brauche.

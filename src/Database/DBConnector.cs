@@ -1,14 +1,9 @@
 ﻿using MySqlConnector;
 using ServerCloud.Config;
+using ServerCloud.Config.Configuration;
 using Spectre.Console;
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace ServerCloud.Database
 {
@@ -20,22 +15,22 @@ namespace ServerCloud.Database
         //Basic sql connector and creating of basic tables if not exists
         public DBConnector()
         {
-            new Thread(ConnectionTest).Start();
-            ConfigFile config = Application.yaml.load();
+            DefaultConfig config = Application.yaml.find(YAML.defaultConfig).Load<DefaultConfig>();
             if (config.sqlServer == "" || config.sqlUser == "" || config.sqlPass == "" || config.sqlDb == "")
             {
                 SQLInformation(config);
             }
 
             bool isClosed = true;
-            
+
             while (isClosed)
             {
                 try
                 {
-                    this.connection.ConnectionString = $"Server={config.sqlServer};User ID={config.sqlUser};Password={config.sqlPass};Database={config.sqlDb}";
-                    this.connection.StateChange += Connection_StateChange;
-                    this.connection.Open();
+                    connection.ConnectionString = $"server={config.sqlServer};uid={config.sqlUser};pwd={config.sqlPass};database={config.sqlDb}";
+
+                    connection.StateChange += Connection_StateChange;
+                    connection.Open();
                     isClosed = false;
                 }
                 catch (MySqlException e)
@@ -61,47 +56,59 @@ namespace ServerCloud.Database
             AnsiConsole.WriteLine($"Sql Status: {e.CurrentState}");
         }
 
-        public ConfigFile SQLInformation(ConfigFile config)
+        public DefaultConfig SQLInformation(DefaultConfig config)
         {
             AnsiConsole.WriteLine("Gib deine SQL Daten hier an oder in der Config Datei.");
-            config.sqlServer = AnsiConsole.Prompt(new TextPrompt<string>("SQL Server IP").DefaultValue<string>(config.sqlServer));
-            config.sqlUser = AnsiConsole.Prompt(new TextPrompt<string>("SQL Benutzer").DefaultValue<string>(config.sqlUser));
-            config.sqlPass = AnsiConsole.Prompt(new TextPrompt<string>("SQL Passwort").DefaultValue<string>(config.sqlPass).Secret());
-            config.sqlDb = AnsiConsole.Prompt(new TextPrompt<string>("SQL Datenbank").DefaultValue<string>(config.sqlDb));
-            Application.yaml.save(config);
+            config.sqlServer = AnsiConsole.Prompt(new TextPrompt<string>("SQL Server IP").DefaultValue(config.sqlServer));
+            config.sqlUser = AnsiConsole.Prompt(new TextPrompt<string>("SQL Benutzer").DefaultValue(config.sqlUser));
+            config.sqlPass = AnsiConsole.Prompt(new TextPrompt<string>("SQL Passwort").DefaultValue(config.sqlPass).Secret());
+            config.sqlDb = AnsiConsole.Prompt(new TextPrompt<string>("SQL Datenbank").DefaultValue(config.sqlDb));
+            config.save();
             return config;
         }
 
         public void SQLInformationCheck()
         {
-            ConfigFile config = Application.yaml.load();
-            AnsiConsole.WriteLine($"Hier sind deine SQL Daten: (natürlich ohne Passwort!)\n");
-            AnsiConsole.WriteLine($"SQL Server IP:      {config.sqlServer}");
-            AnsiConsole.WriteLine($"SQL Benutzer:       {config.sqlUser}");
-            AnsiConsole.WriteLine($"SQL Datenbank:      {config.sqlDb}");
-var prompt = AnsiConsole.Ask<bool>("Möchtest du diese Daten ändern?");
-SQLInformation(Application.yaml.load());
+            bool confirm = true;
+            while (confirm)
+            {
+                DefaultConfig config = Application.yaml.find(YAML.defaultConfig).Load<DefaultConfig>();
+                AnsiConsole.WriteLine($"Hier sind deine SQL Daten: (natürlich ohne Passwort!)\n");
+                AnsiConsole.WriteLine($"SQL Server IP:      {config.sqlServer}");
+                AnsiConsole.WriteLine($"SQL Benutzer:       {config.sqlUser}");
+                AnsiConsole.WriteLine($"SQL Datenbank:      {config.sqlDb}");
+
+                confirm = AnsiConsole.Confirm("Möchtest du diese Daten ändern?");
+
+
+                if (confirm)
+                {
+                    AnsiConsole.WriteLine($"");
+                    SQLInformation(Application.yaml.find(YAML.defaultConfig).Load<DefaultConfig>());
+                    AnsiConsole.WriteLine($"");
+                }
+            }
         }
 
         //Ja kp ob ich das brauche.
         //Reopens connection every 2 seconds if closed
         //Can be changed to a execute function that opens the connection before the execution
-        public void ConnectionTest()
+        public void Reconnect()
         {
             while (Application.isRunning)
             {
                 Thread.Sleep(2000);
                 //AnsiConsole.WriteLine("Thread ConnectionTest is running!");
-                this.connection.Ping();
-                if (this.connection.State == ConnectionState.Closed)
+                connection.Ping();
+                if (connection.State == ConnectionState.Closed)
                 {
                     try
                     {
-                        this.connection.Open();
+                        connection.Open();
                     }
                     catch (MySqlException) { }
                 }
-                
+
             }
             AnsiConsole.WriteLine("SQL Hintergrund Thread beendet.");
         }

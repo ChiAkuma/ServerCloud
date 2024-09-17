@@ -1,12 +1,10 @@
-﻿using System;
-using System.Globalization;
-using System.IO;
-using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using JavaDownloaderApp;
 using ServerCloud.Config;
+using ServerCloud.Config.Configuration;
 using ServerCloud.Database;
 using Spectre.Console;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace ServerCloud
 {
@@ -65,7 +63,7 @@ namespace ServerCloud
                     .PageSize(10)
                     .MoreChoicesText("[grey](Gehe hoch und runter um mehr optionen zu finden)[/]")
                     .AddChoices(new[] {
-                        "1. Datenordner anpassen", "2. SQL Daten überprüfen" , "3. Programm Beenden",
+                        "1. Datenordner anpassen", "2. SQL Daten überprüfen" , "3. Programm Beenden", "4. Experimental",
                     }));
 
             Rule rule = new Rule();
@@ -84,6 +82,13 @@ namespace ServerCloud
                     cloud.ModuleSelector();
                     break;
                 case 3:
+                    cloud.shutdownProgram();
+                    break;
+                case 4:
+                    JavaDownloader downloader = new JavaDownloader();
+                    Task.Run(() => downloader.DownloadJavaAsync()).GetAwaiter().GetResult();
+                    cloud.ModuleSelector();
+                    break;
                 default:
                     cloud.shutdownProgram();
                     break;
@@ -93,13 +98,16 @@ namespace ServerCloud
         public void shutdownProgram()
         {
             AnsiConsole.WriteLine("Programm wird beendet!");
+            string logfile = "logs" + Path.DirectorySeparatorChar + "log.htm";
+            if (!Directory.Exists("logs")) Directory.CreateDirectory("logs");
+            if (!File.Exists(logfile)) File.Create(logfile).Close();
+            StreamWriter sw = new StreamWriter(logfile, append: true);
 
-            FileStream fs = File.Create("jungle.htm");
-            StreamWriter sw = new StreamWriter(fs);
-            sw.Write(AnsiConsole.ExportHtml());
+            string html = AnsiConsole.ExportHtml().Replace("<pre style=\"font-size:90%;font-family:consolas,'Courier New',monospace\">", "<body style=\"margin:0;padding:0;height:100%;width:100%;background-color:black;\"><pre style=\"background-color:black;color:white;font-size:90%;font-family:consolas,'Courier New',monospace\">").Replace("</pre>", "</pre></body>");
+
+            sw.Write(html);
             sw.Flush();
             sw.Close();
-            fs.Close();
 
             isRunning = false;
             //System.Environment.Exit(0);
@@ -107,7 +115,8 @@ namespace ServerCloud
 
         public void workingDirectoryQuestion(bool overrideSkip = false)
         {
-            ConfigFile config = yaml.load();
+            WorkDir config = yaml.find<WorkDir>().Load<WorkDir>();
+
             if (!config.firstStart)
                 workingDir = config.workingDir;
             AnsiConsole.MarkupLine($"Initializiere Datenordner: [#ff3333]{workingDir}[/]");
@@ -115,12 +124,15 @@ namespace ServerCloud
             {
                 AnsiConsole.MarkupLine($"Um den Pfad zu ändern tippe jetzt den gewünschten Pfad ein:");
                 workingDir = AnsiConsole.Prompt(new TextPrompt<string>("Datenordner").DefaultValue<string>(workingDir));
-                //TODO: Daten in neuen Ordner schieben?
+                
                 AnsiConsole.MarkupLine($"Initializiere neuen Datenordner: [#ff3333]{workingDir}[/]");
+                Directory.CreateDirectory(workingDir);
+                //TODO: Daten in neuen Ordner schieben?
             };
             config.workingDir = workingDir;
             config.firstStart = false;
-            yaml.save(config);
+
+            config.save();
         }
     }
 }
